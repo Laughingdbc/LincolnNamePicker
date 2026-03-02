@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funky Lion Name Selector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Minimal custom CSS for things Tailwind doesn't cover natively */
+        body {
+            transition: background-color 0.1s;
+            background-color: #166534; /* Deep green background */
+        }
+
+        #winner-name {
+            font-size: 10vw;
+            text-shadow: 4px 4px 0px rgba(0,0,0,0.1);
+        }
+
+        .bounce-in {
+            animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Floating Names Animation */
+        .floating-name {
+            position: absolute;
+            bottom: -20%;
+            opacity: 0;
+            animation-name: floatUp;
+            animation-timing-function: linear;
+            animation-fill-mode: forwards;
+            white-space: nowrap;
+            z-index: 0;
+            color: #fde047; /* Bright yellow names */
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.4); /* Added shadow for contrast */
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) rotate(-10deg) scale(0.8); opacity: 0; }
+            10% { opacity: 0.9; } /* Increased from 0.2 to 0.9 for brightness */
+            90% { opacity: 0.9; } /* Increased from 0.2 to 0.9 for brightness */
+            100% { transform: translateY(-120vh) rotate(10deg) scale(1.2); opacity: 0; }
+        }
+
+        /* Cartoon Lion and Disco Ball Animations */
+        @keyframes dance {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-15px) rotate(-8deg); }
+            75% { transform: translateY(-15px) rotate(8deg); }
+        }
+        .dancing-lion {
+            animation: dance 0.6s infinite ease-in-out;
+            transform-origin: bottom center;
+        }
+        @keyframes discoGlow {
+            0%, 100% { filter: drop-shadow(0 0 15px #ff00ff) drop-shadow(0 0 30px #00ffff); }
+            33% { filter: drop-shadow(0 0 15px #00ffff) drop-shadow(0 0 30px #ffff00); }
+            66% { filter: drop-shadow(0 0 15px #ffff00) drop-shadow(0 0 30px #ff00ff); }
+        }
+        .disco-ball {
+            animation: discoGlow 1.2s infinite alternate;
+            transform-origin: top center;
+        }
+        @keyframes armPumpLeft {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(-45deg); }
+        }
+        @keyframes armPumpRight {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(45deg); }
+        }
+        .arm-left { animation: armPumpLeft 0.6s infinite ease-in-out; transform-origin: 50px 140px; }
+        .arm-right { animation: armPumpRight 0.6s infinite ease-in-out; transform-origin: 150px 140px; }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen overflow-hidden text-gray-800">
+
+    <!-- SETUP STATE -->
+    <div id="setup-container" class="flex flex-col items-center bg-white p-8 rounded-2xl shadow-xl z-10 max-w-md w-full mx-4 transition-all duration-300">
+        <h1 class="text-3xl font-bold mb-2 text-center">Funky Name Selector</h1>
+        <p class="text-gray-500 mb-6 text-center">Paste names below (one per line):</p>
+        <textarea id="name-list" class="w-full h-48 text-base p-4 mb-6 border-2 border-gray-200 rounded-xl focus:border-red-400 focus:ring-0 outline-none resize-none">Alice
+Bob
+Charlie
+Diana
+Ethan
+Fiona
+George</textarea>
+        <button id="start-btn" class="w-full py-4 text-xl font-bold text-white bg-red-500 rounded-xl shadow-[0_6px_0_#c53030] hover:bg-red-400 hover:translate-y-[2px] hover:shadow-[0_4px_0_#c53030] active:translate-y-[6px] active:shadow-none transition-all">
+            Let's Dance! 🦁
+        </button>
+    </div>
+
+    <!-- ACTIVE/REVEAL STATE -->
+    <div id="animation-container" class="hidden flex-col items-center justify-center absolute inset-0 z-0">
+        
+        <!-- Container for dynamically spawned floating names -->
+        <div id="floating-names-container" class="absolute inset-0 overflow-hidden z-0 pointer-events-none"></div>
+        
+        <!-- Party Scene (Disco Ball & Lion) -->
+        <div id="party-scene" class="flex flex-col items-center justify-center z-10 drop-shadow-2xl pointer-events-none mt-10">
+            <!-- Disco Ball SVG -->
+            <svg viewBox="0 0 100 120" class="disco-ball w-24 h-32 md:w-32 md:h-40 mb-4 z-20">
+                <line x1="50" y1="0" x2="50" y2="30" stroke="#777" stroke-width="2"/>
+                <defs>
+                    <pattern id="disco-pattern" width="8" height="8" patternUnits="userSpaceOnUse">
+                        <rect width="4" height="4" fill="#f8f9fa"/>
+                        <rect x="4" width="4" height="4" fill="#ced4da"/>
+                        <rect y="4" width="4" height="4" fill="#e9ecef"/>
+                        <rect x="4" y="4" width="4" height="4" fill="#adb5bd"/>
+                    </pattern>
+                    <radialGradient id="disco-shine" cx="30%" cy="30%" r="50%">
+                        <stop offset="0%" stop-color="white" stop-opacity="0.8"/>
+                        <stop offset="100%" stop-color="black" stop-opacity="0.3"/>
+                    </radialGradient>
+                </defs>
+                <circle cx="50" cy="70" r="40" fill="url(#disco-pattern)" />
+                <circle cx="50" cy="70" r="40" fill="url(#disco-shine)" />
+            </svg>
+
+            <!-- Dancing Lion SVG -->
+            <svg viewBox="0 0 200 200" class="dancing-lion w-48 h-48 md:w-64 md:h-64 z-10 overflow-visible">
+                <!-- Tail -->
+                <path d="M 130 170 Q 180 180 170 130" fill="none" stroke="#FFCA28" stroke-width="10" stroke-linecap="round"/>
+                <circle cx="170" cy="130" r="10" fill="#E65100"/>
+                
+                <!-- Arms (Back) -->
+                <rect x="35" y="130" width="16" height="45" rx="8" fill="#FFCA28" class="arm-left"/>
+                <rect x="149" y="130" width="16" height="45" rx="8" fill="#FFCA28" class="arm-right"/>
+
+                <!-- Body -->
+                <path d="M 75 110 L 125 110 L 140 190 Q 100 200 60 190 Z" fill="#FFCA28"/>
+                <path d="M 85 130 L 115 130 L 125 190 L 75 190 Z" fill="#FFF8E1"/> 
+                
+                <!-- Feet -->
+                <ellipse cx="60" cy="190" rx="15" ry="10" fill="#E65100"/>
+                <ellipse cx="140" cy="190" rx="15" ry="10" fill="#E65100"/>
+
+                <!-- Mane -->
+                <circle cx="100" cy="80" r="48" fill="none" stroke="#E65100" stroke-width="24" stroke-dasharray="20 15" stroke-linecap="round"/>
+                
+                <!-- Ears -->
+                <circle cx="65" cy="45" r="12" fill="#FFB300"/>
+                <circle cx="135" cy="45" r="12" fill="#FFB300"/>
+                
+                <!-- Face -->
+                <circle cx="100" cy="80" r="45" fill="#FFCA28"/>
+                
+                <!-- Eyes -->
+                <circle cx="85" cy="75" r="6" fill="#3E2723"/>
+                <circle cx="115" cy="75" r="6" fill="#3E2723"/>
+                
+                <!-- Glasses -->
+                <path d="M 70 70 L 130 70 L 125 85 Q 115 95 105 85 L 100 80 L 95 85 Q 85 95 75 85 Z" fill="#E91E63" opacity="0.9"/>
+                
+                <!-- Snout -->
+                <ellipse cx="100" cy="98" rx="18" ry="12" fill="#FFF8E1"/>
+                <polygon points="95,92 105,92 100,98" fill="#3E2723"/>
+                <path d="M 95 98 Q 100 106 105 98" stroke="#3E2723" stroke-width="2" fill="none"/>
+            </svg>
+        </div>
+        
+        <!-- Winner Reveal -->
+        <div id="winner-name" class="hidden font-extrabold text-green-500 z-20 text-center tracking-tight px-4 bounce-in"></div>
+        
+        <button id="reset-btn" class="hidden mt-12 px-8 py-3 text-lg font-bold text-white bg-gray-800 rounded-full shadow-lg hover:bg-gray-700 active:scale-95 transition-all z-30">
+            Pick Another
+        </button>
+    </div>
+
+    <script>
+        // ==========================================
+        // EXTERNAL ASSETS (Music)
+        // ==========================================
+        const MUSIC_URL = "NamePicker.mp3"; 
+        // ==========================================
+
+        const setupContainer = document.getElementById('setup-container');
+        const animationContainer = document.getElementById('animation-container');
+        const nameListInput = document.getElementById('name-list');
+        const startBtn = document.getElementById('start-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const floatingNamesContainer = document.getElementById('floating-names-container');
+        const winnerNameDiv = document.getElementById('winner-name');
+        const partyScene = document.getElementById('party-scene');
+
+        let audio = new Audio(MUSIC_URL);
+        let names = [];
+        let spawnInterval;
+        let selectTimeout;
+
+        startBtn.addEventListener('click', () => {
+            // 1. Parse names
+            const text = nameListInput.value.trim();
+            if (!text) {
+                alert("Please enter at least one name!");
+                return;
+            }
+            names = text.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+
+            // 2. Transition UI
+            setupContainer.classList.add('hidden');
+            animationContainer.classList.remove('hidden');
+            animationContainer.classList.add('flex');
+            
+            winnerNameDiv.classList.add('hidden');
+            winnerNameDiv.classList.remove('bounce-in');
+            resetBtn.classList.add('hidden');
+            partyScene.classList.remove('hidden');
+            floatingNamesContainer.innerHTML = ''; // Clear old names
+            
+            // 3. Start Audio
+            audio.currentTime = 0;
+            audio.play().catch(e => console.log("Audio play requires user interaction."));
+
+            // 4. Start spawning floating names
+            spawnInterval = setInterval(() => {
+                const nameEl = document.createElement('div');
+                nameEl.innerText = names[Math.floor(Math.random() * names.length)];
+                nameEl.className = 'floating-name font-black uppercase';
+                
+                // Randomize position, size, and speed
+                const leftPos = Math.random() * 80 + 5; // 5% to 85% width
+                const fontSize = Math.random() * 3 + 2; // 2rem to 5rem
+                const duration = Math.random() * 3 + 4; // 4s to 7s
+                
+                nameEl.style.left = `${leftPos}%`;
+                nameEl.style.fontSize = `${fontSize}rem`;
+                nameEl.style.animationDuration = `${duration}s`;
+                
+                floatingNamesContainer.appendChild(nameEl);
+                
+                // Clean up DOM node after animation completes
+                setTimeout(() => {
+                    if (floatingNamesContainer.contains(nameEl)) {
+                        floatingNamesContainer.removeChild(nameEl);
+                    }
+                }, duration * 1000);
+            }, 300); // Spawns a new name every 300ms
+
+            // 5. Stop after 20 seconds
+            selectTimeout = setTimeout(selectWinner, 20000);
+        });
+
+        function selectWinner() {
+            clearInterval(spawnInterval);
+            audio.pause();
+            
+            // Clear floating names
+            floatingNamesContainer.innerHTML = '';
+            
+            // Hide the party scene so the focus is 100% on the name (Signaling)
+            partyScene.classList.add('hidden'); 
+
+            // Pick & show the winner
+            const winner = names[Math.floor(Math.random() * names.length)];
+            winnerNameDiv.innerText = winner + "!";
+            winnerNameDiv.classList.remove('hidden');
+            winnerNameDiv.classList.add('bounce-in');
+
+            // Show the reset button
+            resetBtn.classList.remove('hidden');
+        }
+
+        resetBtn.addEventListener('click', () => {
+            // Reset to setup screen
+            animationContainer.classList.add('hidden');
+            animationContainer.classList.remove('flex');
+            setupContainer.classList.remove('hidden');
+            
+            // Ensure any rogue intervals/timeouts are cleared
+            clearInterval(spawnInterval);
+            clearTimeout(selectTimeout);
+            audio.pause();
+        });
+    </script>
+</body>
+</html>
