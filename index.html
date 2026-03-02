@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Funky Lion Name Selector</title>
     <style>
-        /* 100% NATIVE CSS - No external dependencies to get blocked by firewalls */
         * {
             box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -14,7 +13,7 @@
         body {
             margin: 0;
             padding: 0;
-            background-color: #166534; /* Deep green */
+            background-color: #166534;
             color: #1f2937;
             display: flex;
             flex-direction: column;
@@ -71,7 +70,7 @@
 
         /* --- ANIMATION SCREEN --- */
         #animation-container {
-            display: none; /* Hidden by default natively */
+            display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -89,12 +88,11 @@
             margin-top: 2rem;
         }
 
-        /* Winner Name Text */
         #winner-name {
             display: none;
             font-size: 10vw;
             font-weight: 900;
-            color: #22c55e; /* Bright green */
+            color: #22c55e;
             text-shadow: 4px 4px 0px rgba(0,0,0,0.2);
             text-align: center;
             z-index: 20;
@@ -122,7 +120,6 @@
             100% { transform: scale(1); opacity: 1; }
         }
 
-        /* Floating Names */
         .floating-name {
             position: absolute;
             bottom: -20%;
@@ -132,19 +129,18 @@
             animation-fill-mode: forwards;
             white-space: nowrap;
             z-index: 0;
-            color: #fde047; /* Bright yellow */
+            color: #fde047;
             text-shadow: 2px 2px 8px rgba(0,0,0,0.4);
             font-weight: 900;
             text-transform: uppercase;
         }
         @keyframes floatUp {
             0% { transform: translateY(0) rotate(-10deg) scale(0.8); opacity: 0; }
-            10% { opacity: 0.9; } 
-            90% { opacity: 0.9; } 
+            10% { opacity: 0.9; }
+            90% { opacity: 0.9; }
             100% { transform: translateY(-120vh) rotate(10deg) scale(1.2); opacity: 0; }
         }
 
-        /* Party Scene SVGs */
         .disco-ball {
             width: 100px; height: 130px;
             animation: discoGlow 1.2s infinite alternate;
@@ -172,6 +168,17 @@
         .arm-right { animation: armPumpRight 0.6s infinite ease-in-out; transform-origin: 150px 140px; }
         @keyframes armPumpLeft { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-45deg); } }
         @keyframes armPumpRight { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(45deg); } }
+
+        /* --- CONFETTI CANVAS --- */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 15;
+        }
     </style>
 </head>
 <body>
@@ -192,10 +199,9 @@ George</textarea>
 
     <!-- ACTIVE/REVEAL STATE -->
     <div id="animation-container">
-        
+
         <div id="floating-names-container" style="position: absolute; inset: 0; overflow: hidden; z-index: 0; pointer-events: none;"></div>
-        
-        <!-- Party Scene (Disco Ball & Lion) -->
+
         <div id="party-scene">
             <svg viewBox="0 0 100 120" class="disco-ball">
                 <line x1="50" y1="0" x2="50" y2="30" stroke="#777" stroke-width="2"/>
@@ -221,7 +227,7 @@ George</textarea>
                 <rect x="35" y="130" width="16" height="45" rx="8" fill="#FFCA28" class="arm-left"/>
                 <rect x="149" y="130" width="16" height="45" rx="8" fill="#FFCA28" class="arm-right"/>
                 <path d="M 75 110 L 125 110 L 140 190 Q 100 200 60 190 Z" fill="#FFCA28"/>
-                <path d="M 85 130 L 115 130 L 125 190 L 75 190 Z" fill="#FFF8E1"/> 
+                <path d="M 85 130 L 115 130 L 125 190 L 75 190 Z" fill="#FFF8E1"/>
                 <ellipse cx="60" cy="190" rx="15" ry="10" fill="#E65100"/>
                 <ellipse cx="140" cy="190" rx="15" ry="10" fill="#E65100"/>
                 <circle cx="100" cy="80" r="48" fill="none" stroke="#E65100" stroke-width="24" stroke-dasharray="20 15" stroke-linecap="round"/>
@@ -236,13 +242,14 @@ George</textarea>
                 <path d="M 95 98 Q 100 106 105 98" stroke="#3E2723" stroke-width="2" fill="none"/>
             </svg>
         </div>
-        
+
+        <canvas id="confetti-canvas"></canvas>
         <div id="winner-name"></div>
         <button id="reset-btn">Pick Another</button>
     </div>
 
     <script>
-        const MUSIC_URL = "NamePicker (1).mp3"; 
+        const MUSIC_URL = "NamePicker (1).mp3";
 
         const setupContainer = document.getElementById('setup-container');
         const animationContainer = document.getElementById('animation-container');
@@ -252,12 +259,195 @@ George</textarea>
         const floatingNamesContainer = document.getElementById('floating-names-container');
         const winnerNameDiv = document.getElementById('winner-name');
         const partyScene = document.getElementById('party-scene');
+        const confettiCanvas = document.getElementById('confetti-canvas');
+        const ctx = confettiCanvas.getContext('2d');
 
         let audio = new Audio(MUSIC_URL);
         let names = [];
         let spawnInterval;
         let selectTimeout;
+        let confettiAnimationId;
 
+        /* =========================================
+           CONFETTI ENGINE (pure canvas)
+           ========================================= */
+        const confettiColors = [
+            '#ef4444', '#f97316', '#eab308', '#22c55e',
+            '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4',
+            '#fde047', '#a3e635', '#f472b6', '#ffffff'
+        ];
+        let confettiPieces = [];
+
+        function resizeCanvas() {
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function createConfettiPiece() {
+            const shapes = ['rect', 'circle', 'strip'];
+            return {
+                x: Math.random() * confettiCanvas.width,
+                y: -20 - Math.random() * confettiCanvas.height * 0.5,
+                w: Math.random() * 10 + 5,
+                h: Math.random() * 6 + 3,
+                color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+                shape: shapes[Math.floor(Math.random() * shapes.length)],
+                rotation: Math.random() * 360,
+                rotationSpeed: (Math.random() - 0.5) * 12,
+                velocityX: (Math.random() - 0.5) * 6,
+                velocityY: Math.random() * 3 + 2,
+                gravity: 0.04 + Math.random() * 0.04,
+                wobble: Math.random() * 10,
+                wobbleSpeed: Math.random() * 0.1 + 0.02,
+                opacity: 1
+            };
+        }
+
+        function launchConfetti() {
+            confettiPieces = [];
+            for (let i = 0; i < 200; i++) confettiPieces.push(createConfettiPiece());
+            setTimeout(() => { for (let i = 0; i < 80; i++) confettiPieces.push(createConfettiPiece()); }, 400);
+            setTimeout(() => { for (let i = 0; i < 60; i++) confettiPieces.push(createConfettiPiece()); }, 900);
+            setTimeout(() => { for (let i = 0; i < 40; i++) confettiPieces.push(createConfettiPiece()); }, 1500);
+            animateConfetti();
+        }
+
+        function animateConfetti() {
+            ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+
+            for (let i = confettiPieces.length - 1; i >= 0; i--) {
+                const p = confettiPieces[i];
+                p.velocityY += p.gravity;
+                p.x += p.velocityX + Math.sin(p.wobble) * 1.5;
+                p.y += p.velocityY;
+                p.rotation += p.rotationSpeed;
+                p.wobble += p.wobbleSpeed;
+
+                if (p.y > confettiCanvas.height * 0.8) p.opacity -= 0.015;
+                if (p.opacity <= 0 || p.y > confettiCanvas.height + 30) {
+                    confettiPieces.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate((p.rotation * Math.PI) / 180);
+                ctx.globalAlpha = p.opacity;
+                ctx.fillStyle = p.color;
+
+                if (p.shape === 'rect') {
+                    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                } else if (p.shape === 'circle') {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.fillRect(-p.w / 2, -1, p.w, 3);
+                }
+                ctx.restore();
+            }
+
+            if (confettiPieces.length > 0) {
+                confettiAnimationId = requestAnimationFrame(animateConfetti);
+            }
+        }
+
+        function stopConfetti() {
+            if (confettiAnimationId) {
+                cancelAnimationFrame(confettiAnimationId);
+                confettiAnimationId = null;
+            }
+            confettiPieces = [];
+            ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+        }
+
+        /* =========================================
+           CELEBRATORY SOUND FX (Web Audio API)
+           ========================================= */
+        let audioCtx;
+
+        function getAudioContext() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return audioCtx;
+        }
+
+        function playFanfare() {
+            const ac = getAudioContext();
+            const now = ac.currentTime;
+
+            // Rising chime: C5 → E5 → G5 → C6
+            [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                const osc = ac.createOscillator();
+                const gain = ac.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now + i * 0.12);
+                gain.gain.setValueAtTime(0, now + i * 0.12);
+                gain.gain.linearRampToValueAtTime(0.25, now + i * 0.12 + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.5);
+                osc.connect(gain);
+                gain.connect(ac.destination);
+                osc.start(now + i * 0.12);
+                osc.stop(now + i * 0.12 + 0.6);
+            });
+
+            // Triumphant held chord: C major + octave
+            [261.63, 329.63, 392.00, 523.25].forEach((freq) => {
+                const osc = ac.createOscillator();
+                const gain = ac.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now + 0.5);
+                gain.gain.setValueAtTime(0, now + 0.5);
+                gain.gain.linearRampToValueAtTime(0.12, now + 0.6);
+                gain.gain.setValueAtTime(0.12, now + 1.5);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 2.8);
+                osc.connect(gain);
+                gain.connect(ac.destination);
+                osc.start(now + 0.5);
+                osc.stop(now + 3.0);
+            });
+
+            // Confetti "pop" burst (filtered noise)
+            const bufferSize = ac.sampleRate * 0.15;
+            const noiseBuffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
+            const data = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 3);
+            }
+            const noiseSource = ac.createBufferSource();
+            const noiseGain = ac.createGain();
+            const noiseFilter = ac.createBiquadFilter();
+            noiseFilter.type = 'bandpass';
+            noiseFilter.frequency.value = 3000;
+            noiseFilter.Q.value = 0.5;
+            noiseSource.buffer = noiseBuffer;
+            noiseGain.gain.setValueAtTime(0.35, now);
+            noiseSource.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(ac.destination);
+            noiseSource.start(now);
+
+            // Sparkle shimmer
+            for (let i = 0; i < 6; i++) {
+                const osc = ac.createOscillator();
+                const gain = ac.createGain();
+                osc.type = 'sine';
+                const t = now + 0.3 + Math.random() * 1.2;
+                osc.frequency.setValueAtTime(1800 + Math.random() * 2500, t);
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.06, t + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+                osc.connect(gain);
+                gain.connect(ac.destination);
+                osc.start(t);
+                osc.stop(t + 0.3);
+            }
+        }
+
+        /* =========================================
+           MAIN LOGIC
+           ========================================= */
         startBtn.addEventListener('click', () => {
             const text = nameListInput.value.trim();
             if (!text) {
@@ -266,57 +456,62 @@ George</textarea>
             }
             names = text.split('\n').map(n => n.trim()).filter(n => n.length > 0);
 
-            // Transition UI cleanly using pure CSS properties
+            // Prime audio context on user gesture
+            getAudioContext();
+
             setupContainer.style.display = 'none';
             animationContainer.style.display = 'flex';
             winnerNameDiv.style.display = 'none';
             winnerNameDiv.classList.remove('bounce-in');
             resetBtn.style.display = 'none';
             partyScene.style.display = 'flex';
-            floatingNamesContainer.innerHTML = ''; 
-            
-            // Start Audio
+            floatingNamesContainer.innerHTML = '';
+            stopConfetti();
+
             audio.currentTime = 0;
             audio.play().catch(e => console.log("Audio play requires user interaction."));
 
-            // Start spawning floating names
             spawnInterval = setInterval(() => {
                 const nameEl = document.createElement('div');
                 nameEl.innerText = names[Math.floor(Math.random() * names.length)];
                 nameEl.className = 'floating-name';
-                
-                const leftPos = Math.random() * 80 + 5; 
-                const fontSize = Math.random() * 3 + 2; 
-                const duration = Math.random() * 3 + 4; 
-                
+
+                const leftPos = Math.random() * 80 + 5;
+                const fontSize = Math.random() * 3 + 2;
+                const duration = Math.random() * 3 + 4;
+
                 nameEl.style.left = `${leftPos}%`;
                 nameEl.style.fontSize = `${fontSize}rem`;
                 nameEl.style.animationDuration = `${duration}s`;
-                
+
                 floatingNamesContainer.appendChild(nameEl);
-                
+
                 setTimeout(() => {
                     if (floatingNamesContainer.contains(nameEl)) {
                         floatingNamesContainer.removeChild(nameEl);
                     }
                 }, duration * 1000);
-            }, 300); 
+            }, 300);
 
-            // Stop after 20 seconds
-            selectTimeout = setTimeout(selectWinner, 20000);
+            // 19 seconds
+            selectTimeout = setTimeout(selectWinner, 19000);
         });
 
         function selectWinner() {
             clearInterval(spawnInterval);
             audio.pause();
-            
+
             floatingNamesContainer.innerHTML = '';
-            partyScene.style.display = 'none'; 
+            partyScene.style.display = 'none';
 
             const winner = names[Math.floor(Math.random() * names.length)];
             winnerNameDiv.innerText = winner + "!";
             winnerNameDiv.style.display = 'block';
             winnerNameDiv.classList.add('bounce-in');
+
+            // 🎉 Confetti + fanfare!
+            launchConfetti();
+            playFanfare();
 
             resetBtn.style.display = 'block';
         }
@@ -324,10 +519,11 @@ George</textarea>
         resetBtn.addEventListener('click', () => {
             animationContainer.style.display = 'none';
             setupContainer.style.display = 'block';
-            
+
             clearInterval(spawnInterval);
             clearTimeout(selectTimeout);
             audio.pause();
+            stopConfetti();
         });
     </script>
 </body>
